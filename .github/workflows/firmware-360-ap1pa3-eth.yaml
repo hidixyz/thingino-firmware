@@ -39,6 +39,13 @@ jobs:
           ref: ${{ github.event.inputs.ref || 'master' }}
           fetch-depth: 1
 
+      - name: Validate workflow file has no unresolved merge markers
+        run: |
+          if grep -nE "^(<<<<<<<|=======|>>>>>>>)" .github/workflows/firmware-360-ap1pa3-eth.yaml; then
+            echo "Unresolved merge conflict markers found in workflow file"
+            exit 1
+          fi
+
       - name: Build firmware
         run: |
           mkdir -p ~/.ccache ~/dl

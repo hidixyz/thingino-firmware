@@ -55,26 +55,33 @@ jobs:
         run: |
           IMG_DIR=$(find "${GITHUB_WORKSPACE}/output" -type d -path "*/${BOARD}*/images" | head -n 1)
           LOG_DIR=$(find "${GITHUB_WORKSPACE}/output" -type d -path "*/${BOARD}*/logs" | head -n 1)
+          ARTIFACT_DIR="${GITHUB_WORKSPACE}/artifact-${BOARD}"
           if [ -z "$IMG_DIR" ]; then
             echo "Could not find firmware images directory for ${BOARD}"
             find "${GITHUB_WORKSPACE}/output" -maxdepth 4 -type d | sort
             exit 1
           fi
-          if [ -z "$LOG_DIR" ]; then
-            echo "Could not find firmware logs directory for ${BOARD}"
-            find "${GITHUB_WORKSPACE}/output" -maxdepth 4 -type d | sort
-            exit 1
+
+          mkdir -p "$ARTIFACT_DIR/images"
+          cp -a "$IMG_DIR"/. "$ARTIFACT_DIR/images/"
+
+          if [ -n "$LOG_DIR" ]; then
+            mkdir -p "$ARTIFACT_DIR/logs"
+            cp -a "$LOG_DIR"/. "$ARTIFACT_DIR/logs/"
+          else
+            echo "Warning: logs directory not found, uploading images only"
           fi
+
           echo "IMG_DIR=${IMG_DIR}" >> "$GITHUB_ENV"
           echo "LOG_DIR=${LOG_DIR}" >> "$GITHUB_ENV"
+          echo "ARTIFACT_DIR=${ARTIFACT_DIR}" >> "$GITHUB_ENV"
           echo "Using IMG_DIR=$IMG_DIR"
-          echo "Using LOG_DIR=$LOG_DIR"
+          if [ -n "$LOG_DIR" ]; then echo "Using LOG_DIR=$LOG_DIR"; fi
+          echo "Using ARTIFACT_DIR=$ARTIFACT_DIR"
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
           name: thingino-${{ env.BOARD }}-firmware
-          path: |
-            ${{ env.IMG_DIR }}/*
-            ${{ env.LOG_DIR }}/*
+          path: ${{ env.ARTIFACT_DIR }}
           if-no-files-found: error

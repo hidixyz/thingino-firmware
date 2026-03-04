@@ -1,0 +1,73 @@
+name: firmware-360-ap1pa3-eth
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref (branch/tag/SHA) to build
+        required: false
+        default: master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: debian:trixie
+    env:
+      TERM: linux
+      BR2_DL_DIR: ~/dl
+      FORCE_UNSAFE_CONFIGURE: 1
+      BOARD: 360_ap1pa3_t31x_gc4653_eth+atbm6031
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends --no-install-suggests \
+            autoconf build-essential bc cmake cpio curl ca-certificates file git make \
+            gawk jq m4 p7zip-full perl procps python3 rsync tzdata u-boot-tools unzip wget
+
+      - name: Setup GitHub workspace in container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Checkout repository source
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          ref: ${{ github.event.inputs.ref || 'master' }}
+          fetch-depth: 1
+
+      - name: Build firmware
+        run: |
+          mkdir -p ~/.ccache ~/dl
+          BOARD="$BOARD" make fast WORKFLOW=1
+
+      - name: Locate firmware output paths
+        run: |
+          IMG_DIR=$(find "${GITHUB_WORKSPACE}/output" -type d -path "*/${BOARD}*/images" | head -n 1)
+          LOG_DIR=$(find "${GITHUB_WORKSPACE}/output" -type d -path "*/${BOARD}*/logs" | head -n 1)
+          if [ -z "$IMG_DIR" ]; then
+            echo "Could not find firmware images directory for ${BOARD}"
+            find "${GITHUB_WORKSPACE}/output" -maxdepth 4 -type d | sort
+            exit 1
+          fi
+          if [ -z "$LOG_DIR" ]; then
+            echo "Could not find firmware logs directory for ${BOARD}"
+            find "${GITHUB_WORKSPACE}/output" -maxdepth 4 -type d | sort
+            exit 1
+          fi
+          echo "IMG_DIR=${IMG_DIR}" >> "$GITHUB_ENV"
+          echo "LOG_DIR=${LOG_DIR}" >> "$GITHUB_ENV"
+          echo "Using IMG_DIR=$IMG_DIR"
+          echo "Using LOG_DIR=$LOG_DIR"
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: thingino-${{ env.BOARD }}-firmware
+          path: |
+            ${{ env.IMG_DIR }}/*
+            ${{ env.LOG_DIR }}/*
+          if-no-files-found: error

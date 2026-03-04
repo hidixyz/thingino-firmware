@@ -1,0 +1,57 @@
+name: Build 360 AP1PA3 Firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Optional branch to build (defaults to repository default branch)
+        required: false
+        type: string
+  push:
+    branches:
+      - main
+      - master
+      - stable
+    paths:
+      - 'configs/cameras/360_ap1pa3_t31x_gc4653_atbm6031/**'
+      - '.github/workflows/build-360_ap1pa3.yml'
+      - 'Makefile'
+      - 'board.mk'
+      - 'thingino.mk'
+
+concurrency:
+  group: build-360-ap1pa3-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            autoconf bc build-essential cmake cpio curl file flex gawk git jq m4 \
+            make perl python3 python3-jsonschema rsync u-boot-tools unzip wget \
+            whiptail
+
+      - name: Build firmware (360 AP1PA3)
+        run: |
+          BOARD=360_ap1pa3_t31x_gc4653_atbm6031 make fast WORKFLOW=1
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: 360_ap1pa3_t31x_gc4653_atbm6031-firmware
+          path: |
+            output/*/360_ap1pa3_t31x_gc4653_atbm6031-*/images/thingino-360_ap1pa3_t31x_gc4653_atbm6031*.bin
+            output/*/360_ap1pa3_t31x_gc4653_atbm6031-*/images/thingino-360_ap1pa3_t31x_gc4653_atbm6031*.sha256sum
+          if-no-files-found: error

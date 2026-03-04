@@ -79,6 +79,36 @@ jobs:
           if [ -n "$LOG_DIR" ]; then echo "Using LOG_DIR=$LOG_DIR"; fi
           echo "Using ARTIFACT_DIR=$ARTIFACT_DIR"
 
+      - name: Validate compiled firmware artifacts
+        run: |
+          FULL_FW=$(find "${IMG_DIR}" -maxdepth 1 -name "thingino-${BOARD}.bin" ! -name "*update.bin" | head -n 1)
+          UPDATE_FW=$(find "${IMG_DIR}" -maxdepth 1 -name "thingino-${BOARD}-update.bin" | head -n 1)
+          FULL_FW_SHA=$(find "${IMG_DIR}" -maxdepth 1 -name "thingino-${BOARD}.bin.sha256sum" ! -name "*update.bin*" | head -n 1)
+          UPDATE_FW_SHA=$(find "${IMG_DIR}" -maxdepth 1 -name "thingino-${BOARD}-update.bin.sha256sum" | head -n 1)
+
+          if [ -z "$FULL_FW" ] || [ -z "$UPDATE_FW" ]; then
+            echo "Required firmware files are missing in ${IMG_DIR}"
+            ls -lah "${IMG_DIR}" || true
+            exit 1
+          fi
+
+          FULL_SIZE=$(stat -c%s "$FULL_FW")
+          if [ "$FULL_SIZE" -lt 15000000 ]; then
+            echo "Full firmware size is too small: ${FULL_SIZE} bytes (expected near 16MB)"
+            ls -lah "${IMG_DIR}" || true
+            exit 1
+          fi
+
+          echo "FULL_FW=${FULL_FW}" >> "$GITHUB_ENV"
+          echo "UPDATE_FW=${UPDATE_FW}" >> "$GITHUB_ENV"
+          echo "FULL_FW_SHA=${FULL_FW_SHA}" >> "$GITHUB_ENV"
+          echo "UPDATE_FW_SHA=${UPDATE_FW_SHA}" >> "$GITHUB_ENV"
+
+          cp -av "$FULL_FW" "$ARTIFACT_DIR/images/"
+          cp -av "$UPDATE_FW" "$ARTIFACT_DIR/images/"
+          [ -n "$FULL_FW_SHA" ] && cp -av "$FULL_FW_SHA" "$ARTIFACT_DIR/images/" || true
+          [ -n "$UPDATE_FW_SHA" ] && cp -av "$UPDATE_FW_SHA" "$ARTIFACT_DIR/images/" || true
+
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:

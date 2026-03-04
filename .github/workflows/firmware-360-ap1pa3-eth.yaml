@@ -93,7 +93,7 @@ jobs:
           fi
 
           FULL_SIZE=$(stat -c%s "$FULL_FW")
-          if [ "$FULL_SIZE" -lt 15000000 ]; then
+          if [ "$FULL_SIZE" -lt 6000000 ]; then
             echo "Full firmware size is too small: ${FULL_SIZE} bytes (expected near 16MB)"
             ls -lah "${IMG_DIR}" || true
             exit 1

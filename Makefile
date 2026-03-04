@@ -676,11 +676,11 @@ br-%: check-config
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) $(subst br-,,$@)
 
-# checkout buidroot submodule
+# checkout buildroot submodule pinned by this repository
 buildroot/Makefile:
 	$(info -------------------------------- $@)
 	git submodule init
-	git submodule update --remote --recursive
+	git submodule update --init --recursive
 
 # create output directory
 $(OUTPUT_DIR)/.keep:
